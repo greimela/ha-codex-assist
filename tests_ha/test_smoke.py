@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import pytest
 from homeassistant.components import conversation
+from homeassistant.components.conversation.chat_log import DATA_CHAT_LOGS
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import Context, HomeAssistant
 from homeassistant.setup import async_setup_component
@@ -91,6 +92,43 @@ async def test_conversation_turn_streams_codex_reply(
 
     speech = result.response.speech["plain"]["speech"]
     assert speech == "The porch light is on."
+
+
+async def test_conversation_turn_omits_trailing_sources_from_speech(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    await _setup_entry(hass)
+
+    visible_response = (
+        "Die Kramerei am Kreisel in Dorfen hat heute, Mittwoch, den "
+        "19. August 2026, von 6 Uhr bis 18 Uhr geöffnet. "
+        "([kramerei-am-kreisel.de](https://www.kramerei-am-kreisel.de/"
+        "kontakt?utm_source=openai))"
+    )
+
+    async def fake_stream_turn(self: CodexClient, **kwargs: object):
+        yield CodexTextDelta(visible_response)
+
+    monkeypatch.setattr(CodexClient, "stream_turn", fake_stream_turn)
+
+    result = await conversation.async_converse(
+        hass,
+        "What will the weather be tomorrow?",
+        None,
+        Context(),
+        agent_id="conversation.codex_assist",
+    )
+
+    speech = result.response.speech["plain"]["speech"]
+    assert speech == (
+        "Die Kramerei am Kreisel in Dorfen hat heute, Mittwoch, den "
+        "19. August 2026, von 6 Uhr bis 18 Uhr geöffnet."
+    )
+    assert result.conversation_id is not None
+    assert hass.data[DATA_CHAT_LOGS][result.conversation_id].content[-1].content == (
+        visible_response
+    )
 
 
 async def test_diagnostics_redact_tokens_on_real_entry(hass: HomeAssistant) -> None:

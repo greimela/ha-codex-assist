@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from collections.abc import AsyncIterator, Callable
 from typing import Any
 
@@ -42,6 +43,15 @@ from .config_flow import (
 MAX_TOOL_ITERATIONS = 5
 MAX_IMAGE_ATTACHMENT_BYTES = 10 * 1024 * 1024
 LOGGER = logging.getLogger(__name__)
+
+_MARKDOWN_CITATION_RE = re.compile(
+    r"\s*\(\[[^\]\n]+\]\(https?://[^)\n]+\)\)",
+    re.IGNORECASE,
+)
+_TRAILING_SOURCES_SECTION_RE = re.compile(
+    r"\n\s*(?:#{1,6}\s*)?(?:sources?|quellen)\s*:?\s*\n.*$",
+    re.IGNORECASE | re.DOTALL,
+)
 
 
 async def async_setup_entry(
@@ -235,7 +245,27 @@ class CodexAssistConversationEntity(
                 )
             )
 
-        return conversation.async_get_result_from_chat_log(user_input, chat_log)
+        result = conversation.async_get_result_from_chat_log(user_input, chat_log)
+        _remove_citations_from_result_speech(result)
+        return result
+
+
+def _remove_citations_from_result_speech(result: conversation.ConversationResult) -> None:
+    """Remove web citations from TTS while leaving streamed chat content intact."""
+    response = getattr(result, "response", None)
+    speech = getattr(response, "speech", None)
+    if not isinstance(speech, dict):
+        return
+    plain = speech.get("plain")
+    if not isinstance(plain, dict) or not isinstance(plain.get("speech"), str):
+        return
+    plain["speech"] = _speech_without_citations(plain["speech"])
+
+
+def _speech_without_citations(text: str) -> str:
+    """Strip citation markup and source sections that should not be read aloud."""
+    text = _TRAILING_SOURCES_SECTION_RE.sub("", text).rstrip()
+    return _MARKDOWN_CITATION_RE.sub("", text).rstrip()
 
 
 async def _stream_codex_turn_into_chat_log(

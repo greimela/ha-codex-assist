@@ -200,6 +200,54 @@ def test_codex_tools_from_chat_log_keeps_web_search_disabled_by_default(
     assert conversation_module._codex_tools_from_chat_log(FakeChatLog()) == []
 
 
+def test_speech_without_citations_removes_trailing_markdown_source(
+    conversation_module,
+):
+    response = (
+        "Die Kramerei am Kreisel in Dorfen hat heute von 6 Uhr bis 18 Uhr geöffnet. "
+        "([kramerei-am-kreisel.de](https://www.kramerei-am-kreisel.de/"
+        "kontakt?utm_source=openai))"
+    )
+
+    assert conversation_module._speech_without_citations(response) == (
+        "Die Kramerei am Kreisel in Dorfen hat heute von 6 Uhr bis 18 Uhr geöffnet."
+    )
+
+
+def test_speech_without_citations_removes_trailing_sources_section(
+    conversation_module,
+):
+    response = (
+        "It will be sunny tomorrow.\n\n"
+        "### Sources:\n"
+        "- [Local forecast](https://example.com/weather)"
+    )
+
+    assert conversation_module._speech_without_citations(response) == (
+        "It will be sunny tomorrow."
+    )
+
+
+def test_speech_without_citations_removes_inline_citation_markers(
+    conversation_module,
+):
+    response = (
+        "The shop opens at six ([shop](https://example.com/hours)). "
+        "It closes at eighteen. ([directory](https://example.com/listing))"
+    )
+
+    assert conversation_module._speech_without_citations(response) == (
+        "The shop opens at six. It closes at eighteen."
+    )
+
+def test_speech_without_citations_preserves_non_citation_links(
+    conversation_module,
+):
+    response = "Open [the forecast](https://example.com/weather) for details."
+
+    assert conversation_module._speech_without_citations(response) == response
+
+
 @pytest.mark.asyncio
 async def test_stream_codex_turn_into_chat_log_calls_chat_log_stream_api(
     conversation_module,
