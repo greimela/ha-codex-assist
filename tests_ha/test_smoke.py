@@ -201,7 +201,10 @@ async def test_web_search_citations_are_displayable_but_not_spoken(
         tools = kwargs["tools"]
         assert isinstance(tools, list)
         assert {"type": "web_search"} in tools
-        yield CodexTextDelta("IANA maintains the reserved domains.")
+        yield CodexTextDelta(
+            "IANA maintains the reserved domains. "
+            "([iana.org](https://www.iana.org/help/example-domains?utm_source=openai))"
+        )
         yield CodexCitationDelta(
             CodexCitation(
                 title="IANA Reserved Domains",

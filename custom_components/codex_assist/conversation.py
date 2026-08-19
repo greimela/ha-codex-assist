@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from collections.abc import AsyncIterator, Awaitable, Callable
 from typing import Any
 from urllib.parse import urlsplit
@@ -56,6 +57,14 @@ _WEB_SEARCH_CITATION_INSTRUCTIONS = (
     "When using web search, do not include raw URLs, markdown links, or a Source/Sources "
     "section in the response text. Refer to sources by human-readable names only. The "
     "integration renders structured citations separately."
+)
+_MARKDOWN_CITATION_RE = re.compile(
+    r"\s*\(\[[^\]\n]+\]\(https?://[^)\n]+\)\)",
+    re.IGNORECASE,
+)
+_TRAILING_SOURCES_SECTION_RE = re.compile(
+    r"\n\s*(?:#{1,6}\s*)?(?:sources?|quellen)\s*:?\s*\n.*$",
+    re.IGNORECASE | re.DOTALL,
 )
 
 
@@ -168,6 +177,7 @@ class CodexAssistConversationEntity(
                         text_verbosity=text_verbosity,
                         allow_tools=allow_tools,
                         citation_sink=citations,
+                        strip_web_citations=web_search,
                     )
                 except CodexAuthenticationError as err:
                     LOGGER.warning(
@@ -216,6 +226,7 @@ class CodexAssistConversationEntity(
                             text_verbosity=text_verbosity,
                             allow_tools=allow_tools,
                             citation_sink=citations,
+                            strip_web_citations=web_search,
                         )
                     except CodexAuthenticationError as retry_err:
                         LOGGER.warning(
@@ -272,6 +283,12 @@ def _request_failure_text(err: BaseException) -> str:
     return request_failure_text("Codex Assist failed", err)
 
 
+def _speech_without_citations(text: str) -> str:
+    """Remove raw citation markup from text that Home Assistant may send to TTS."""
+    text = _TRAILING_SOURCES_SECTION_RE.sub("", text).rstrip()
+    return _MARKDOWN_CITATION_RE.sub("", text).rstrip()
+
+
 async def _run_tool_rounds(
     *,
     max_tool_rounds: int,
@@ -303,6 +320,7 @@ async def _stream_codex_turn_into_chat_log(
     text_format: dict[str, Any] | None = None,
     allow_tools: bool = True,
     citation_sink: list[CodexCitation] | None = None,
+    strip_web_citations: bool = False,
 ) -> bool:
     tool_call_requested = False
 
@@ -326,6 +344,7 @@ async def _stream_codex_turn_into_chat_log(
             on_tool_call=mark_tool_call_requested,
             allow_tools=allow_tools,
             citation_sink=citation_sink,
+            strip_web_citations=strip_web_citations,
         ),
     ):
         pass
@@ -338,10 +357,12 @@ async def _codex_stream_to_assistant_deltas(
     on_tool_call: Callable[[], None] | None = None,
     allow_tools: bool = True,
     citation_sink: list[CodexCitation] | None = None,
+    strip_web_citations: bool = False,
 ) -> AsyncIterator[AssistantContentDeltaDict]:
     started = False
     seen_urls: set[str] = set()
     response_items: list[dict[str, Any]] = []
+    buffered_text: list[str] = []
     async for delta in stream:
         if isinstance(delta, CodexResponseItemDelta):
             response_items.append(delta.item)
@@ -355,6 +376,16 @@ async def _codex_stream_to_assistant_deltas(
                 ):
                     citation_sink.append(citation)
             continue
+        if strip_web_citations and isinstance(delta, CodexTextDelta):
+            buffered_text.append(delta.text)
+            continue
+        if buffered_text:
+            if not started:
+                yield {"role": "assistant"}
+                started = True
+            if filtered_text := _speech_without_citations("".join(buffered_text)):
+                yield {"content": filtered_text}
+            buffered_text.clear()
         if not started:
             yield {"role": "assistant"}
             started = True
@@ -376,6 +407,12 @@ async def _codex_stream_to_assistant_deltas(
                     )
                 ]
             }
+    if buffered_text:
+        if not started:
+            yield {"role": "assistant"}
+            started = True
+        if filtered_text := _speech_without_citations("".join(buffered_text)):
+            yield {"content": filtered_text}
     if native_state := native_state_from_response_items(response_items):
         if not started:
             yield {"role": "assistant"}
