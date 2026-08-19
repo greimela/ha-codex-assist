@@ -18,6 +18,9 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.codex_assist import DOMAIN
 from custom_components.codex_assist.codex_client import CodexClient, CodexTextDelta
+from custom_components.codex_assist.conversation import (
+    _stream_codex_turn_into_chat_log,
+)
 from custom_components.codex_assist.diagnostics import (
     REDACTED,
     async_get_config_entry_diagnostics,
@@ -29,6 +32,7 @@ ENTRY_DATA = {
     "refresh_token": "test-refresh-token",
     "model": "gpt-5.4",
     "prompt": "You are a concise Home Assistant Assist conversation agent.",
+    "web_search": True,
 }
 
 
@@ -100,7 +104,7 @@ async def test_conversation_turn_omits_trailing_sources_from_speech(
 ) -> None:
     await _setup_entry(hass)
 
-    visible_response = (
+    cited_response = (
         "Die Kramerei am Kreisel in Dorfen hat heute, Mittwoch, den "
         "19. August 2026, von 6 Uhr bis 18 Uhr geöffnet. "
         "([kramerei-am-kreisel.de](https://www.kramerei-am-kreisel.de/"
@@ -108,7 +112,7 @@ async def test_conversation_turn_omits_trailing_sources_from_speech(
     )
 
     async def fake_stream_turn(self: CodexClient, **kwargs: object):
-        yield CodexTextDelta(visible_response)
+        yield CodexTextDelta(cited_response)
 
     monkeypatch.setattr(CodexClient, "stream_turn", fake_stream_turn)
 
@@ -127,7 +131,51 @@ async def test_conversation_turn_omits_trailing_sources_from_speech(
     )
     assert result.conversation_id is not None
     assert hass.data[DATA_CHAT_LOGS][result.conversation_id].content[-1].content == (
-        visible_response
+        "Die Kramerei am Kreisel in Dorfen hat heute, Mittwoch, den "
+        "19. August 2026, von 6 Uhr bis 18 Uhr geöffnet."
+    )
+
+
+async def test_web_search_citations_do_not_reach_streaming_tts_input(
+    hass: HomeAssistant,
+) -> None:
+    streamed_deltas: list[dict] = []
+    chat_log = conversation.ChatLog(
+        hass,
+        "streaming-tts-test",
+        delta_listener=lambda _chat_log, delta: streamed_deltas.append(delta),
+    )
+    cited_response = (
+        "Die Kramerei am Kreisel in Dorfen hat heute von 6 Uhr bis 18 Uhr geöffnet. "
+        "([kramerei-am-kreisel.de](https://www.kramerei-am-kreisel.de/"
+        "kontakt?utm_source=openai))"
+    )
+
+    class FakeCodex:
+        async def stream_turn(self, **kwargs: object):
+            yield CodexTextDelta(cited_response[:90])
+            yield CodexTextDelta(cited_response[90:])
+
+    await _stream_codex_turn_into_chat_log(
+        chat_log=chat_log,
+        codex=FakeCodex(),
+        entity_id="conversation.codex_assist",
+        model="gpt-5.4",
+        instructions="Be concise.",
+        input_items=[{"role": "user", "content": "When is the shop open?"}],
+        tools=[{"type": "web_search"}],
+        reasoning_effort="low",
+        reasoning_summary="auto",
+        text_verbosity="medium",
+    )
+
+    tts_input = "".join(
+        delta.get("content", "")
+        for delta in streamed_deltas
+        if delta.get("role") in (None, "assistant")
+    )
+    assert tts_input == (
+        "Die Kramerei am Kreisel in Dorfen hat heute von 6 Uhr bis 18 Uhr geöffnet."
     )
 
 

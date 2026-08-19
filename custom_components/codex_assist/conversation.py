@@ -251,7 +251,7 @@ class CodexAssistConversationEntity(
 
 
 def _remove_citations_from_result_speech(result: conversation.ConversationResult) -> None:
-    """Remove web citations from TTS while leaving streamed chat content intact."""
+    """Remove any remaining web citations from the final TTS response."""
     response = getattr(result, "response", None)
     speech = getattr(response, "speech", None)
     if not isinstance(speech, dict):
@@ -282,6 +282,7 @@ async def _stream_codex_turn_into_chat_log(
     text_verbosity: str,
 ) -> bool:
     tool_call_requested = False
+    strip_web_citations = any(tool.get("type") == "web_search" for tool in tools)
 
     def mark_tool_call_requested() -> None:
         nonlocal tool_call_requested
@@ -300,6 +301,7 @@ async def _stream_codex_turn_into_chat_log(
                 text_verbosity=text_verbosity,
             ),
             on_tool_call=mark_tool_call_requested,
+            strip_web_citations=strip_web_citations,
         ),
     ):
         pass
@@ -310,9 +312,21 @@ async def _codex_stream_to_assistant_deltas(
     stream: AsyncIterator[CodexStreamDelta],
     *,
     on_tool_call: Callable[[], None] | None = None,
+    strip_web_citations: bool = False,
 ) -> AsyncIterator[AssistantContentDeltaDict]:
     started = False
+    buffered_text: list[str] = []
     async for delta in stream:
+        if strip_web_citations and isinstance(delta, CodexTextDelta):
+            buffered_text.append(delta.text)
+            continue
+        if buffered_text:
+            if not started:
+                yield {"role": "assistant"}
+                started = True
+            if filtered_text := _speech_without_citations("".join(buffered_text)):
+                yield {"content": filtered_text}
+            buffered_text.clear()
         if not started:
             yield {"role": "assistant"}
             started = True
@@ -330,6 +344,11 @@ async def _codex_stream_to_assistant_deltas(
                     )
                 ]
             }
+    if buffered_text:
+        if not started:
+            yield {"role": "assistant"}
+        if filtered_text := _speech_without_citations("".join(buffered_text)):
+            yield {"content": filtered_text}
 
 
 async def _refresh_runtime_tokens(

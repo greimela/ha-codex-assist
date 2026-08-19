@@ -158,6 +158,28 @@ async def test_codex_stream_to_assistant_deltas_yields_text_and_tool_inputs(
     assert called is True
 
 
+@pytest.mark.asyncio
+async def test_codex_stream_to_assistant_deltas_strips_split_web_citations(
+    conversation_module,
+):
+    async def stream():
+        yield CodexTextDelta("The shop is open. ([shop](https://example")
+        yield CodexTextDelta(".com/hours?utm_source=openai))")
+
+    deltas = [
+        delta
+        async for delta in conversation_module._codex_stream_to_assistant_deltas(
+            stream(),
+            strip_web_citations=True,
+        )
+    ]
+
+    assert deltas == [
+        {"role": "assistant"},
+        {"content": "The shop is open."},
+    ]
+
+
 def test_codex_tools_from_chat_log_converts_ha_llm_api_tools(conversation_module):
     tool = type(
         "Tool",
