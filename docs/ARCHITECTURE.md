@@ -10,14 +10,14 @@ Codex Assist is a Home Assistant custom integration that registers a native Assi
 - **Model discovery**: offers a curated fallback model list and, when authenticated, asks the Codex backend for the currently available model IDs.
 - **Conversation agent**: registers `conversation.codex_assist` so Codex Assist can be selected in Home Assistant Assist pipelines.
 - **AI Task entity**: registers a native AI Task provider for structured data generation, attachment-aware prompts, and image generation.
-- **Codex client**: refreshes tokens when possible and sends conversation turns to the Codex-compatible service interface.
+- **Codex client**: refreshes tokens when possible and sends conversation turns to the Codex-compatible service interface, optionally exposing its hosted web-search tool.
 - **Assist tool bridge**: maps model-requested actions into Home Assistant's Assist LLM API rather than calling services directly.
 
 ## Request flow
 
 1. Home Assistant sends a voice/chat request through an Assist pipeline using `conversation.codex_assist`.
 2. Codex Assist refreshes its stored Codex/ChatGPT token if needed.
-3. Codex Assist sends the conversation to the Codex-compatible service interface.
+3. Codex Assist sends the conversation to the Codex-compatible service interface. When the user has enabled web search, the model may use the hosted web-search tool for current information.
 4. If Codex requests a Home Assistant tool call, Codex Assist maps that request into Home Assistant's Assist LLM API.
 5. Home Assistant validates and executes the allowed Assist tool call using its normal exposed-entity controls.
 6. Codex Assist returns the final response to Home Assistant.

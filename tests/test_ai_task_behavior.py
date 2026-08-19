@@ -131,6 +131,7 @@ async def test_ai_task_chat_log_retry_propagates_reauth_required(
             reasoning_effort="low",
             reasoning_summary="auto",
             text_verbosity="medium",
+            web_search=False,
         )
 
 
@@ -186,6 +187,7 @@ async def test_ai_task_chat_log_retry_reauths_when_refreshed_token_is_rejected(
             reasoning_effort="low",
             reasoning_summary="auto",
             text_verbosity="medium",
+            web_search=False,
         )
 
     assert calls == 2

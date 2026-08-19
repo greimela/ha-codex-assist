@@ -36,6 +36,7 @@ from .config_flow import (
     DEFAULT_REASONING_EFFORT,
     DEFAULT_REASONING_SUMMARY,
     DEFAULT_TEXT_VERBOSITY,
+    DEFAULT_WEB_SEARCH,
 )
 
 MAX_TOOL_ITERATIONS = 5
@@ -90,6 +91,7 @@ class CodexAssistConversationEntity(
         reasoning_effort = settings.get("reasoning_effort", DEFAULT_REASONING_EFFORT)
         reasoning_summary = settings.get("reasoning_summary", DEFAULT_REASONING_SUMMARY)
         text_verbosity = settings.get("text_verbosity", DEFAULT_TEXT_VERBOSITY)
+        web_search = settings.get("web_search", DEFAULT_WEB_SEARCH)
 
         response = intent.IntentResponse(language=user_input.language)
         try:
@@ -137,7 +139,10 @@ class CodexAssistConversationEntity(
                         model=model,
                         instructions=_instructions_from_chat_log(chat_log, prompt),
                         input_items=await _codex_input_from_chat_log(self.hass, chat_log),
-                        tools=_codex_tools_from_chat_log(chat_log),
+                        tools=_codex_tools_from_chat_log(
+                            chat_log,
+                            enable_web_search=web_search,
+                        ),
                         reasoning_effort=reasoning_effort,
                         reasoning_summary=reasoning_summary,
                         text_verbosity=text_verbosity,
@@ -177,7 +182,10 @@ class CodexAssistConversationEntity(
                             model=model,
                             instructions=_instructions_from_chat_log(chat_log, prompt),
                             input_items=await _codex_input_from_chat_log(self.hass, chat_log),
-                            tools=_codex_tools_from_chat_log(chat_log),
+                            tools=_codex_tools_from_chat_log(
+                                chat_log,
+                                enable_web_search=web_search,
+                            ),
                             reasoning_effort=reasoning_effort,
                             reasoning_summary=reasoning_summary,
                             text_verbosity=text_verbosity,
@@ -438,14 +446,20 @@ def _image_attachments_for_codex(attachments: Any) -> list[tuple[str, bytes]]:
     return images
 
 
-def _codex_tools_from_chat_log(chat_log: conversation.ChatLog) -> list[dict[str, Any]]:
-    if not chat_log.llm_api:
-        return []
-
-    return [
-        _codex_tool_from_ha_tool(tool, chat_log.llm_api.custom_serializer)
-        for tool in chat_log.llm_api.tools
-    ]
+def _codex_tools_from_chat_log(
+    chat_log: conversation.ChatLog,
+    *,
+    enable_web_search: bool = False,
+) -> list[dict[str, Any]]:
+    tools: list[dict[str, Any]] = []
+    if chat_log.llm_api:
+        tools.extend(
+            _codex_tool_from_ha_tool(tool, chat_log.llm_api.custom_serializer)
+            for tool in chat_log.llm_api.tools
+        )
+    if enable_web_search:
+        tools.append({"type": "web_search"})
+    return tools
 
 
 def _codex_tool_from_ha_tool(

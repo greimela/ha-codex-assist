@@ -183,6 +183,23 @@ def test_codex_tools_from_chat_log_converts_ha_llm_api_tools(conversation_module
     ]
 
 
+def test_codex_tools_from_chat_log_adds_hosted_web_search(conversation_module):
+    chat_log = FakeChatLog(llm_api=None)
+
+    result = conversation_module._codex_tools_from_chat_log(
+        chat_log,
+        enable_web_search=True,
+    )
+
+    assert result == [{"type": "web_search"}]
+
+
+def test_codex_tools_from_chat_log_keeps_web_search_disabled_by_default(
+    conversation_module,
+):
+    assert conversation_module._codex_tools_from_chat_log(FakeChatLog()) == []
+
+
 @pytest.mark.asyncio
 async def test_stream_codex_turn_into_chat_log_calls_chat_log_stream_api(
     conversation_module,

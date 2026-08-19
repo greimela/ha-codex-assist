@@ -45,7 +45,8 @@ Requirements: Home Assistant `2026.5.0` or newer, HACS, and a ChatGPT account/pl
 - Let Home Assistant's Assist exposed-entity controls define what the agent can see or control.
 - Ask about exposed entity state and request simple actions in the same Assist chat.
 - Stream replies in Assist while Codex is answering.
-- Configure model, prompt, reasoning effort, reasoning summary, and text verbosity from the integration options flow.
+- Configure model, prompt, reasoning effort, reasoning summary, text verbosity, and optional web search from the integration options flow.
+- Let the model search the web for current information when the default-off **Allow web search** option is enabled. Search availability and usage limits depend on the selected Codex model and ChatGPT/Codex plan.
 - Use Home Assistant AI Task for structured data generation, attachment-aware prompts, and subscription-backed image generation with curated image quality and size controls.
 
 <p align="center">

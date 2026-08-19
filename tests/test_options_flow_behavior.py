@@ -22,6 +22,7 @@ def test_options_schema_keeps_saved_model_only_when_available(monkeypatch):
 
     defaults = {key.key: key.default for key in schema.schema}
     assert defaults["model"] == module.DEFAULT_MODEL
+    assert defaults["web_search"] is False
     assert defaults["image_model"] == "gpt-image-2-medium"
     assert defaults["image_size"] == "1024x1024"
 
@@ -55,6 +56,7 @@ def test_options_schema_exposes_curated_controls_without_custom_model_input(monk
         "off",
     ]
     assert fields["text_verbosity"].config.options == ["low", "medium", "high"]
+    assert fields["web_search"] is bool
     assert [option.value for option in fields["image_model"].config.options] == [
         "gpt-image-2-low",
         "gpt-image-2-medium",

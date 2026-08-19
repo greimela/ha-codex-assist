@@ -153,6 +153,7 @@ def _reconfigure_entry(**overrides):
         "reasoning_effort": "high",
         "reasoning_summary": "detailed",
         "text_verbosity": "low",
+        "web_search": True,
         "image_model": "gpt-image-2-high",
         "image_size": "1536x1024",
         "access_token": "old-access",
@@ -180,6 +181,7 @@ async def test_reconfigure_shows_form_prefilled_from_entry(config_flow_module):
         "reasoning_effort": "high",
         "reasoning_summary": "detailed",
         "text_verbosity": "low",
+        "web_search": True,
         "image_model": "gpt-image-2-high",
         "image_size": "1536x1024",
     }
@@ -198,6 +200,7 @@ async def test_reconfigure_updates_existing_entry_after_device_token_exchange(
         "reasoning_effort": "medium",
         "reasoning_summary": "auto",
         "text_verbosity": "medium",
+        "web_search": False,
         "image_model": "gpt-image-2-medium",
         "image_size": "1024x1024",
     }
@@ -216,6 +219,7 @@ async def test_reconfigure_updates_existing_entry_after_device_token_exchange(
         "reasoning_effort": "medium",
         "reasoning_summary": "auto",
         "text_verbosity": "medium",
+        "web_search": False,
         "image_model": "gpt-image-2-medium",
         "image_size": "1024x1024",
         "access_token": "access-1",
@@ -243,6 +247,7 @@ async def test_reconfigure_device_code_request_failure_shows_error(config_flow_m
             "reasoning_effort": "medium",
             "reasoning_summary": "auto",
             "text_verbosity": "medium",
+            "web_search": False,
             "image_model": "gpt-image-2-medium",
             "image_size": "1024x1024",
         }
@@ -257,6 +262,7 @@ async def test_reconfigure_device_code_request_failure_shows_error(config_flow_m
         "reasoning_effort": "high",
         "reasoning_summary": "detailed",
         "text_verbosity": "low",
+        "web_search": True,
         "image_model": "gpt-image-2-high",
         "image_size": "1536x1024",
     }

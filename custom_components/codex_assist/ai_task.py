@@ -28,6 +28,7 @@ from .config_flow import (
     DEFAULT_REASONING_EFFORT,
     DEFAULT_REASONING_SUMMARY,
     DEFAULT_TEXT_VERBOSITY,
+    DEFAULT_WEB_SEARCH,
 )
 from .conversation import (
     MAX_TOOL_ITERATIONS,
@@ -94,6 +95,7 @@ class CodexAssistAITaskEntity(ai_task.AITaskEntity):
         reasoning_effort = settings.get("reasoning_effort", DEFAULT_REASONING_EFFORT)
         reasoning_summary = settings.get("reasoning_summary", DEFAULT_REASONING_SUMMARY)
         text_verbosity = settings.get("text_verbosity", DEFAULT_TEXT_VERBOSITY)
+        web_search = settings.get("web_search", DEFAULT_WEB_SEARCH)
 
         http_client = get_async_client(self.hass)
         auth_client = CodexAuthClient(http_client=http_client)
@@ -132,6 +134,7 @@ class CodexAssistAITaskEntity(ai_task.AITaskEntity):
                 reasoning_effort=reasoning_effort,
                 reasoning_summary=reasoning_summary,
                 text_verbosity=text_verbosity,
+                web_search=web_search,
             )
         except CodexRateLimitError as err:
             LOGGER.warning("Codex Assist AI Task hit usage or rate limit: %s", err)
@@ -266,6 +269,7 @@ async def _run_codex_ai_task_chat_log(
     reasoning_effort: str,
     reasoning_summary: str,
     text_verbosity: str,
+    web_search: bool,
 ) -> None:
     """Run Codex over an AI Task chat log with one auth refresh retry."""
     for _iteration in range(MAX_TOOL_ITERATIONS):
@@ -277,7 +281,10 @@ async def _run_codex_ai_task_chat_log(
                 model=model,
                 instructions=_instructions_from_chat_log(chat_log, prompt),
                 input_items=await _codex_input_from_chat_log(hass, chat_log),
-                tools=_codex_tools_from_chat_log(chat_log),
+                tools=_codex_tools_from_chat_log(
+                    chat_log,
+                    enable_web_search=web_search,
+                ),
                 reasoning_effort=reasoning_effort,
                 reasoning_summary=reasoning_summary,
                 text_verbosity=text_verbosity,
@@ -303,7 +310,10 @@ async def _run_codex_ai_task_chat_log(
                     model=model,
                     instructions=_instructions_from_chat_log(chat_log, prompt),
                     input_items=await _codex_input_from_chat_log(hass, chat_log),
-                    tools=_codex_tools_from_chat_log(chat_log),
+                    tools=_codex_tools_from_chat_log(
+                        chat_log,
+                        enable_web_search=web_search,
+                    ),
                     reasoning_effort=reasoning_effort,
                     reasoning_summary=reasoning_summary,
                     text_verbosity=text_verbosity,
