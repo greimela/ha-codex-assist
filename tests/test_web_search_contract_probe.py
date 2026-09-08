@@ -70,3 +70,21 @@ def test_event_summary_preserves_shape_without_text_queries_urls_or_ids() -> Non
     assert "private" not in rendered
     assert "example.invalid" not in rendered
     assert "private-item-id" not in rendered
+
+
+def test_probe_requires_explicit_model(monkeypatch, capsys) -> None:
+    import pytest
+
+    module = _probe_module()
+    monkeypatch.setattr("sys.argv", ["probe", "--dry-run"])
+    with pytest.raises(SystemExit) as exc:
+        module.main()
+    assert exc.value.code == 2
+    assert "--model" in capsys.readouterr().err
+
+
+def test_probe_dry_run_uses_selected_model(monkeypatch, capsys) -> None:
+    module = _probe_module()
+    monkeypatch.setattr("sys.argv", ["probe", "--dry-run", "--model", "account-model"])
+    assert module.main() == 0
+    assert json.loads(capsys.readouterr().out)["model"] == "account-model"

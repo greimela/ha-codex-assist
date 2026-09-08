@@ -6,7 +6,14 @@ This checklist is for maintainers.
 
 1. Update the version in `custom_components/codex_assist/manifest.json` and `pyproject.toml`, then refresh `uv.lock`.
 2. Confirm those `X.Y.Z` values match the planned `vX.Y.Z` tag.
-3. Review README, wiki, security, support, and compatibility guidance.
+3. Review README, wiki, security, support, and compatibility guidance. Check the
+   bundled suggestions in `custom_components/codex_assist/codex_models.py` against
+   the [official Codex model guidance](https://learn.chatgpt.com/docs/models),
+   including retirement notices specific to ChatGPT sign-in. Remove explicitly
+   retired suggestions and test replacements before adding them. Update the review
+   date beside the list, even when no IDs change. The list contains unverified
+   suggestions, not a guarantee of availability for every account. Do not replace
+   saved selections as part of this review.
 4. Verify brand assets and screenshots contain no private data. For PNG icons, confirm the corner alpha is transparent:
 
    ```bash

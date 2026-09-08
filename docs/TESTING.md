@@ -42,9 +42,13 @@ uv run --isolated --python 3.14 --with-requirements requirements_test_ha_previou
 
 ## Hosted-search compatibility
 
+Replace `MODEL_ID` below with a model from the integration’s account-discovered
+list. The probe requires an explicit model so it cannot silently test a retired
+hardcoded default.
+
 When the hosted-search payload, model defaults, citation handling, or backend contract changes:
 
-1. Run `uv run python scripts/probe_web_search_contract.py --dry-run` and its tests.
+1. Run `uv run python scripts/probe_web_search_contract.py --model MODEL_ID --dry-run` and its tests.
 2. In Home Assistant, enable web search and ask a current-information question that requires search.
 3. Verify the displayed answer includes validated clickable citations and the spoken answer contains no raw URLs or source block.
 4. Verify a long spoken answer completes without a new Codex Assist or audio error.
@@ -52,7 +56,7 @@ When the hosted-search payload, model defaults, citation handling, or backend co
 
    ```bash
    CODEX_ASSIST_ACCESS_TOKEN='[ephemeral integration-owned token]' \
-     uv run python scripts/probe_web_search_contract.py
+     uv run python scripts/probe_web_search_contract.py --model MODEL_ID
    ```
 
    The probe emits event names and key shapes, not response text, search queries,
