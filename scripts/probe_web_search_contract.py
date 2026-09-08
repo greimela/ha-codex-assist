@@ -24,7 +24,6 @@ from custom_components.codex_assist.codex_client import (  # noqa: E402
     codex_headers,
 )
 
-DEFAULT_MODEL = "gpt-5.4"
 FIXED_PROMPT = (
     "Use web search to identify the organization that maintains the IANA "
     "Reserved Domains page. Cite the source in the response."
@@ -136,7 +135,9 @@ async def run_probe(*, model: str, access_token: str) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", default=DEFAULT_MODEL)
+    parser.add_argument(
+        "--model", required=True, help="Model ID selected from your account’s discovered list"
+    )
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
